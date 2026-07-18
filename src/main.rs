@@ -1,12 +1,16 @@
 #![no_std]
 #![no_main]
 
+use crate::tasks::{Button, HardwareDescriptor, InputTaskPins};
 use embassy_executor::Spawner;
 use embassy_rp::gpio::Input;
 use embassy_rp::i2c::{self, I2c};
 use embassy_rp::peripherals::{I2C0, USB};
 use embassy_rp::usb::Driver as UsbDriver;
 use embassy_rp::{bind_interrupts, gpio::Pull};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::signal::Signal;
+
 use {defmt_rtt as _, panic_probe as _};
 
 pub mod driver;
@@ -31,20 +35,34 @@ bind_interrupts!(struct Irqs {
     I2C0_IRQ => embassy_rp::i2c::InterruptHandler<I2C0>;
 });
 
+static CHANNEL: Signal<CriticalSectionRawMutex, HardwareDescriptor> = Signal::new();
+
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
 
-    let mut signal_pin = Input::new(p.PIN_16, Pull::Up);
-    signal_pin.set_schmitt(true);
+    let input_task_pins = InputTaskPins::<'static> {
+        throttle_disc_0: Button::new(Input::new(p.PIN_16, Pull::Up)),
+        throttle_disc_1: Button::new(Input::new(p.PIN_3, Pull::Up)),
+        throttle_toga_0: Button::new(Input::new(p.PIN_4, Pull::Up)),
+        throttle_toga_1: Button::new(Input::new(p.PIN_5, Pull::Up)),
+        eng_reverse_0: Button::new(Input::new(p.PIN_6, Pull::Up)),
+        eng_reverse_1: Button::new(Input::new(p.PIN_7, Pull::Up)),
+        eng_master_0: Button::new(Input::new(p.PIN_8, Pull::Up)),
+        eng_master_1: Button::new(Input::new(p.PIN_9, Pull::Up)),
+        ignition_crank: Button::new(Input::new(p.PIN_10, Pull::Up)),
+        ignition_norm: Button::new(Input::new(p.PIN_11, Pull::Up)),
+        ignition_start: Button::new(Input::new(p.PIN_12, Pull::Up)),
+        parking_brake: Button::new(Input::new(p.PIN_13, Pull::Up)),
+    };
 
     let driver = UsbDriver::new(p.USB, Irqs);
-    spawner.spawn(tasks::usb_task(driver, signal_pin).unwrap());
+    spawner.spawn(tasks::usb_task(driver).unwrap());
 
     let mut i2c_config = i2c::Config::default();
     i2c_config.scl_pullup = false;
     i2c_config.sda_pullup = false;
 
     let i2c = I2c::new_async(p.I2C0, p.PIN_1, p.PIN_0, Irqs, i2c_config);
-    spawner.spawn(tasks::input_task(i2c).unwrap());
+    spawner.spawn(tasks::input_task(i2c, input_task_pins).unwrap());
 }

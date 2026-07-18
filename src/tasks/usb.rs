@@ -1,21 +1,19 @@
-//! embassy task: USB
-//! receives HardwareState
-//! writes HID reports
-
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use defmt::info;
 use embassy_futures::join::join;
-use embassy_rp::gpio::Input;
 use embassy_rp::{peripherals::USB, usb::Driver as UsbDriver};
-use embassy_time::Timer;
 use embassy_usb::class::hid::{self as usb_hid, HidBootProtocol, HidReaderWriter, HidSubclass};
 use embassy_usb::{self as usb};
 use static_cell::StaticCell;
 use usbd_hid::descriptor::SerializedDescriptor;
 
+pub use descriptor::HardwareDescriptor;
+
+use crate::CHANNEL;
+
 #[embassy_executor::task]
-pub async fn usb_task(driver: UsbDriver<'static, USB>, button: Input<'static>) {
+pub async fn usb_task(driver: UsbDriver<'static, USB>) {
     static STATE: StaticCell<usb_hid::State<'static>> = StaticCell::new();
     static DEVICE_HANDLER: StaticCell<DeviceHandler> = StaticCell::new();
     static REQUEST_HANDLER: StaticCell<RequestHandler> = StaticCell::new();
@@ -51,28 +49,8 @@ pub async fn usb_task(driver: UsbDriver<'static, USB>, button: Input<'static>) {
 
     let usb_writer = async {
         loop {
-            if button.is_high() {
-                writer
-                    .write_serialize(&descriptor::HardwareDescriptor {
-                        axis0: u16::MAX,
-                        axis1: u16::MAX,
-                        buttons: 0b00001111000011110000111100001111,
-                    })
-                    .await
-                    .unwrap();
-            } else {
-                info!("writing");
-                writer
-                    .write_serialize(&descriptor::HardwareDescriptor {
-                        axis0: 1000,
-                        axis1: 1000,
-                        buttons: 0b11110000111100000000111100001111,
-                    })
-                    .await
-                    .unwrap();
-            }
-
-            Timer::after_millis(1).await;
+            let hardware_descriptor = CHANNEL.wait().await;
+            writer.write_serialize(&hardware_descriptor).await.unwrap();
         }
     };
     let usb_reader = async { reader.run(false, request_handler) };
@@ -109,7 +87,7 @@ mod descriptor {
 
 pub fn usb_builder<'d>(driver: UsbDriver<'d, USB>) -> usb::Builder<'d, UsbDriver<'d, USB>> {
     fn usb_config<'a>() -> usb::Config<'a> {
-        let mut config = usb::Config::new(0xc0de, 0xcafe);
+        let mut config = usb::Config::new(0x5e40, 0xface);
         config.manufacturer = Some("Serophots");
         config.product = Some("Pico Throttle Quadrant");
         config.serial_number = Some("12345678");
