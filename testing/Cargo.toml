@@ -1,7 +1,0 @@
-[package]
-name = "testing"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-usbd-hid = "0.10.0"
