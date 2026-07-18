@@ -37,6 +37,8 @@ static_cell = "2.1.1"
 # pio = "0.3.0"
 # rand = { version = "0.10.2", default-features = false }
 
+bitflags = "2.13"
+
 [profile.release]
 debug = true
 

@@ -54,8 +54,9 @@ pub async fn usb_task(driver: UsbDriver<'static, USB>, button: Input<'static>) {
             if button.is_high() {
                 writer
                     .write_serialize(&descriptor::HardwareDescriptor {
-                        axis: u16::MAX,
-                        buttons: 0b00001111,
+                        axis0: u16::MAX,
+                        axis1: u16::MAX,
+                        buttons: 0b00001111000011110000111100001111,
                     })
                     .await
                     .unwrap();
@@ -63,14 +64,15 @@ pub async fn usb_task(driver: UsbDriver<'static, USB>, button: Input<'static>) {
                 info!("writing");
                 writer
                     .write_serialize(&descriptor::HardwareDescriptor {
-                        axis: 1000,
-                        buttons: 0b11110000,
+                        axis0: 1000,
+                        axis1: 1000,
+                        buttons: 0b11110000111100000000111100001111,
                     })
                     .await
                     .unwrap();
             }
 
-            Timer::after_millis(150).await;
+            Timer::after_millis(1).await;
         }
     };
     let usb_reader = async { reader.run(false, request_handler) };
@@ -85,17 +87,23 @@ mod descriptor {
         (collection = APPLICATION, usage_page = GENERIC_DESKTOP, usage = JOYSTICK) = {
             (usage_page = GENERIC_DESKTOP,) = {
                 (usage = X,) = {
-                    #[item_settings(data,variable,absolute,volatile)] axis=input;
+                    #[item_settings(data,variable,absolute,volatile)] axis0=input;
                 };
             };
-            (usage_page = BUTTON, usage_min = BUTTON_1, usage_max = BUTTON_8,) = {
-                #[packed_bits = 8] #[item_settings(data,variable,absolute)] buttons=input;
+            (usage_page = GENERIC_DESKTOP,) = {
+                (usage = Y,) = {
+                    #[item_settings(data,variable,absolute,volatile)] axis1=input;
+                };
+            };
+            (usage_page = BUTTON, usage_min = BUTTON_1, usage_max = 0x20,) = {
+                #[packed_bits = 32] #[item_settings(data,variable,absolute)] buttons=input;
             };
         }
     )]
     pub struct HardwareDescriptor {
-        pub axis: u16,
-        pub buttons: u8,
+        pub axis0: u16,
+        pub axis1: u16,
+        pub buttons: u32,
     }
 }
 
