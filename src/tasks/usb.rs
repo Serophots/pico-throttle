@@ -2,37 +2,94 @@
 //! receives HardwareState
 //! writes HID reports
 
+use core::sync::atomic::{AtomicBool, Ordering};
+
+use defmt::info;
+use embassy_futures::join::join;
+use embassy_rp::gpio::Input;
 use embassy_rp::{peripherals::USB, usb::Driver as UsbDriver};
-use embassy_usb::class::hid::{
-    self as usb_hid, HidBootProtocol, HidProtocolMode, HidReaderWriter, HidSubclass,
-};
+use embassy_time::Timer;
+use embassy_usb::class::hid::{self as usb_hid, HidBootProtocol, HidReaderWriter, HidSubclass};
 use embassy_usb::{self as usb};
 use static_cell::StaticCell;
-
-mod report;
+use usbd_hid::descriptor::SerializedDescriptor;
 
 #[embassy_executor::task]
-pub async fn usb_task(driver: UsbDriver<'static, USB>) {
-    let mut builder = usb_builder(driver);
-    let mut state = usb_hid::State::new();
+pub async fn usb_task(driver: UsbDriver<'static, USB>, button: Input<'static>) {
+    static STATE: StaticCell<usb_hid::State<'static>> = StaticCell::new();
+    static DEVICE_HANDLER: StaticCell<DeviceHandler> = StaticCell::new();
+    static REQUEST_HANDLER: StaticCell<RequestHandler> = StaticCell::new();
 
-    // builder.handler(handler);
+    let request_handler = REQUEST_HANDLER.init_with(|| RequestHandler {});
+    let device_handler = DEVICE_HANDLER.init_with(|| DeviceHandler::new());
+
+    let mut builder: usb::Builder<'static, UsbDriver<'static, USB>> =
+        crate::tasks::usb_builder(driver);
+
+    builder.handler(device_handler);
+
+    let state = STATE.init_with(|| usb_hid::State::new());
 
     let hid = HidReaderWriter::<_, 1, 8>::new(
         &mut builder,
-        &mut state,
+        state,
         embassy_usb::class::hid::Config {
-            report_descriptor: usbd_hid::descriptor::KeyboardReport::desc(),
+            report_descriptor: descriptor::HardwareDescriptor::desc(),
             request_handler: None,
             poll_ms: 60,
             max_packet_size: 64,
-            hid_subclass: HidSubclass::Boot,
-            hid_boot_protocol: HidBootProtocol::Keyboard,
+            hid_subclass: HidSubclass::No,
+            hid_boot_protocol: HidBootProtocol::None,
         },
     );
+
+    let mut usb = builder.build();
+
+    let usb_fut = usb.run();
+
+    let (reader, mut writer) = hid.split();
+
+    let usb_writer = async {
+        loop {
+            if button.is_high() {
+                writer
+                    .write_serialize(&descriptor::HardwareDescriptor { axis: u16::MAX })
+                    .await
+                    .unwrap();
+            } else {
+                info!("writing");
+                writer
+                    .write_serialize(&descriptor::HardwareDescriptor { axis: 1000 })
+                    .await
+                    .unwrap();
+            }
+
+            Timer::after_millis(150).await;
+        }
+    };
+    let usb_reader = async { reader.run(false, request_handler) };
+
+    join(usb_fut, join(usb_writer, usb_reader)).await;
 }
 
-fn usb_builder<'d>(driver: UsbDriver<'d, USB>) -> usb::Builder<'d, UsbDriver<'d, USB>> {
+mod descriptor {
+    use usbd_hid::descriptor::generator_prelude::*;
+
+    #[gen_hid_descriptor(
+        (collection = APPLICATION, usage_page = GENERIC_DESKTOP, usage = JOYSTICK) = {
+            (usage_page = GENERIC_DESKTOP,) = {
+                (usage = X,) = {
+                    #[item_settings(data,variable,absolute,volatile)] axis=input;
+                };
+            };
+        }
+    )]
+    pub struct HardwareDescriptor {
+        pub axis: u16,
+    }
+}
+
+pub fn usb_builder<'d>(driver: UsbDriver<'d, USB>) -> usb::Builder<'d, UsbDriver<'d, USB>> {
     fn usb_config<'a>() -> usb::Config<'a> {
         let mut config = usb::Config::new(0xc0de, 0xcafe);
         config.manufacturer = Some("Serophots");
@@ -62,4 +119,54 @@ fn usb_builder<'d>(driver: UsbDriver<'d, USB>) -> usb::Builder<'d, UsbDriver<'d,
         MSOS_DESCRIPTOR.init_with(|| [0u8; _]),
         CONTROL_BUF.init_with(|| [0u8; _]),
     )
+}
+
+struct RequestHandler {}
+
+impl usb_hid::RequestHandler for RequestHandler {
+    // The default methods are implemented with no-op's
+}
+
+struct DeviceHandler {
+    configured: AtomicBool,
+}
+
+impl DeviceHandler {
+    fn new() -> Self {
+        DeviceHandler {
+            configured: AtomicBool::new(false),
+        }
+    }
+}
+
+impl embassy_usb::Handler for DeviceHandler {
+    fn enabled(&mut self, enabled: bool) {
+        self.configured.store(false, Ordering::Relaxed);
+        if enabled {
+            info!("Device enabled");
+        } else {
+            info!("Device disabled");
+        }
+    }
+
+    fn reset(&mut self) {
+        self.configured.store(false, Ordering::Relaxed);
+        info!("Bus reset, the Vbus current limit is 100mA");
+    }
+
+    fn addressed(&mut self, addr: u8) {
+        self.configured.store(false, Ordering::Relaxed);
+        info!("USB address set to: {}", addr);
+    }
+
+    fn configured(&mut self, configured: bool) {
+        self.configured.store(configured, Ordering::Relaxed);
+        if configured {
+            info!(
+                "Device configured, it may now draw up to the configured current limit from Vbus."
+            )
+        } else {
+            info!("Device is no longer configured, the Vbus current limit is 100mA.");
+        }
+    }
 }
