@@ -41,8 +41,13 @@ static CHANNEL: Signal<CriticalSectionRawMutex, HardwareDescriptor> = Signal::ne
 async fn main(spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
 
+    // reserve analogue pins
+    let _ = p.PIN_26;
+    let _ = p.PIN_27;
+    let _ = p.PIN_28;
+
     let input_task_pins = InputTaskPins::<'static> {
-        throttle_disc_0: Button::new(Input::new(p.PIN_16, Pull::Up)),
+        throttle_disc_0: Button::new(Input::new(p.PIN_2, Pull::Up)),
         throttle_disc_1: Button::new(Input::new(p.PIN_3, Pull::Up)),
         throttle_toga_0: Button::new(Input::new(p.PIN_4, Pull::Up)),
         throttle_toga_1: Button::new(Input::new(p.PIN_5, Pull::Up)),
@@ -54,6 +59,14 @@ async fn main(spawner: Spawner) {
         ignition_norm: Button::new(Input::new(p.PIN_11, Pull::Up)),
         ignition_start: Button::new(Input::new(p.PIN_12, Pull::Up)),
         parking_brake: Button::new(Input::new(p.PIN_13, Pull::Up)),
+        unused_0: Button::new(Input::new(p.PIN_14, Pull::Up)),
+        unused_1: Button::new(Input::new(p.PIN_15, Pull::Up)),
+        unused_2: Button::new(Input::new(p.PIN_16, Pull::Up)),
+        unused_3: Button::new(Input::new(p.PIN_17, Pull::Up)),
+        unused_4: Button::new(Input::new(p.PIN_18, Pull::Up)),
+        unused_5: Button::new(Input::new(p.PIN_19, Pull::Up)),
+        unused_6: Button::new(Input::new(p.PIN_21, Pull::Up)),
+        unused_7: Button::new(Input::new(p.PIN_22, Pull::Up)),
     };
 
     let driver = UsbDriver::new(p.USB, Irqs);

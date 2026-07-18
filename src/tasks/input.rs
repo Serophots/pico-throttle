@@ -56,6 +56,14 @@ pub struct InputTaskPins<'d> {
     pub ignition_norm: Button<'d>,
     pub ignition_start: Button<'d>,
     pub parking_brake: Button<'d>,
+    pub unused_0: Button<'d>,
+    pub unused_1: Button<'d>,
+    pub unused_2: Button<'d>,
+    pub unused_3: Button<'d>,
+    pub unused_4: Button<'d>,
+    pub unused_5: Button<'d>,
+    pub unused_6: Button<'d>,
+    pub unused_7: Button<'d>,
 }
 
 impl<'d> InputTaskPins<'d> {
@@ -76,6 +84,14 @@ impl<'d> InputTaskPins<'d> {
             ignition_norm,
             ignition_start,
             parking_brake,
+            unused_0,
+            unused_1,
+            unused_2,
+            unused_3,
+            unused_4,
+            unused_5,
+            unused_6,
+            unused_7,
         } = self;
 
         if throttle_disc_0.read() {
@@ -113,6 +129,30 @@ impl<'d> InputTaskPins<'d> {
         }
         if parking_brake.read() {
             buttons |= HardwareButtons::PARKING_BRAKE;
+        }
+        if unused_0.read() {
+            buttons |= HardwareButtons::UNUSED_0;
+        }
+        if unused_1.read() {
+            buttons |= HardwareButtons::UNUSED_1;
+        }
+        if unused_2.read() {
+            buttons |= HardwareButtons::UNUSED_2;
+        }
+        if unused_3.read() {
+            buttons |= HardwareButtons::UNUSED_3;
+        }
+        if unused_4.read() {
+            buttons |= HardwareButtons::UNUSED_4;
+        }
+        if unused_5.read() {
+            buttons |= HardwareButtons::UNUSED_5;
+        }
+        if unused_6.read() {
+            buttons |= HardwareButtons::UNUSED_6;
+        }
+        if unused_7.read() {
+            buttons |= HardwareButtons::UNUSED_7;
         }
 
         buttons
