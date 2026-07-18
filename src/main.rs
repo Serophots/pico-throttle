@@ -1,7 +1,8 @@
 #![no_std]
 #![no_main]
 
-use crate::tasks::{Button, HardwareDescriptor, InputTaskPins};
+use crate::driver::{Button, HardwarePins};
+use crate::tasks::HardwareDescriptor;
 use embassy_executor::Spawner;
 use embassy_rp::gpio::Input;
 use embassy_rp::i2c::{self, I2c};
@@ -46,7 +47,7 @@ async fn main(spawner: Spawner) {
     let _ = p.PIN_27;
     let _ = p.PIN_28;
 
-    let input_task_pins = InputTaskPins::<'static> {
+    let input_task_pins = HardwarePins::<'static> {
         throttle_disc_0: Button::new(Input::new(p.PIN_2, Pull::Up)),
         throttle_disc_1: Button::new(Input::new(p.PIN_3, Pull::Up)),
         throttle_toga_0: Button::new(Input::new(p.PIN_4, Pull::Up)),
