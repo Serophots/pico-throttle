@@ -53,13 +53,19 @@ pub async fn usb_task(driver: UsbDriver<'static, USB>, button: Input<'static>) {
         loop {
             if button.is_high() {
                 writer
-                    .write_serialize(&descriptor::HardwareDescriptor { axis: u16::MAX })
+                    .write_serialize(&descriptor::HardwareDescriptor {
+                        axis: u16::MAX,
+                        buttons: 0b00001111,
+                    })
                     .await
                     .unwrap();
             } else {
                 info!("writing");
                 writer
-                    .write_serialize(&descriptor::HardwareDescriptor { axis: 1000 })
+                    .write_serialize(&descriptor::HardwareDescriptor {
+                        axis: 1000,
+                        buttons: 0b11110000,
+                    })
                     .await
                     .unwrap();
             }
@@ -82,10 +88,14 @@ mod descriptor {
                     #[item_settings(data,variable,absolute,volatile)] axis=input;
                 };
             };
+            (usage_page = BUTTON, usage_min = BUTTON_1, usage_max = BUTTON_8,) = {
+                #[packed_bits = 8] #[item_settings(data,variable,absolute)] buttons=input;
+            };
         }
     )]
     pub struct HardwareDescriptor {
         pub axis: u16,
+        pub buttons: u8,
     }
 }
 

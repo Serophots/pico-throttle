@@ -1,3 +1,6 @@
+use crate::driver;
+
 pub struct HardwareState {
-    throttle: f32,
+    axis: u16,
+    eng_mode_selector: driver::EngSelector,
 }
