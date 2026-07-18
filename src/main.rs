@@ -9,73 +9,56 @@ use embassy_futures::join::join;
 use embassy_rp::bind_interrupts;
 use embassy_rp::gpio::{Input, Pull};
 use embassy_rp::peripherals::USB;
-use embassy_rp::usb::{Driver as UsbDriver, InterruptHandler};
+use embassy_rp::usb::Driver as UsbDriver;
 use embassy_usb::class::hid::{
-    HidBootProtocol, HidProtocolMode, HidReaderWriter, HidSubclass, ReportId, RequestHandler,
-    State as HidState,
+    self as usb_hid, HidBootProtocol, HidProtocolMode, HidReaderWriter, HidSubclass,
 };
-use embassy_usb::control::OutResponse;
-use embassy_usb::{Builder, Config, Handler};
 use usbd_hid::descriptor::{KeyboardReport, SerializedDescriptor};
 use {defmt_rtt as _, panic_probe as _};
 
+mod driver;
+mod metadata;
+mod state;
+mod tasks;
+
+pub use driver::*;
+pub use metadata::*;
+pub use state::*;
+
 bind_interrupts!(struct Irqs {
-    USBCTRL_IRQ => InterruptHandler<USB>;
+    USBCTRL_IRQ => embassy_rp::usb::InterruptHandler<USB>;
 });
 
 static HID_PROTOCOL_MODE: AtomicU8 = AtomicU8::new(HidProtocolMode::Boot as u8);
 
 #[embassy_executor::main]
-async fn main(_spawner: Spawner) {
+async fn main(spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
-    // Create the driver, from the HAL.
+
     let driver = UsbDriver::new(p.USB, Irqs);
+    spawner.spawn(tasks::usb_task(driver).unwrap());
 
-    // Create embassy-usb Config
-    let mut config = Config::new(0xc0de, 0xcafe);
-    config.manufacturer = Some("Embassy");
-    config.product = Some("HID keyboard example");
-    config.serial_number = Some("12345678");
-    config.max_power = 100;
-    config.max_packet_size_0 = 64;
-    config.composite_with_iads = false;
-    config.device_class = 0;
-    config.device_sub_class = 0;
-    config.device_protocol = 0;
-
-    // Create embassy-usb DeviceBuilder using the driver and config.
-    // It needs some buffers for building the descriptors.
-    let mut config_descriptor = [0; 256];
-    let mut bos_descriptor = [0; 256];
-    // You can also add a Microsoft OS descriptor.
-    let mut msos_descriptor = [0; 256];
-    let mut control_buf = [0; 64];
     let mut request_handler = MyRequestHandler {};
     let mut device_handler = MyDeviceHandler::new();
 
-    let mut state = HidState::new();
-
-    let mut builder = Builder::new(
-        driver,
-        config,
-        &mut config_descriptor,
-        &mut bos_descriptor,
-        &mut msos_descriptor,
-        &mut control_buf,
-    );
+    let mut state = usb_hid::State::new();
+    let mut builder = usb_builder_new(driver);
 
     builder.handler(&mut device_handler);
 
     // Create classes on the builder.
-    let config = embassy_usb::class::hid::Config {
-        report_descriptor: KeyboardReport::desc(),
-        request_handler: None,
-        poll_ms: 60,
-        max_packet_size: 64,
-        hid_subclass: HidSubclass::Boot,
-        hid_boot_protocol: HidBootProtocol::Keyboard,
-    };
-    let hid = HidReaderWriter::<_, 1, 8>::new(&mut builder, &mut state, config);
+    let hid = HidReaderWriter::<_, 1, 8>::new(
+        &mut builder,
+        &mut state,
+        embassy_usb::class::hid::Config {
+            report_descriptor: KeyboardReport::desc(),
+            request_handler: None,
+            poll_ms: 60,
+            max_packet_size: 64,
+            hid_subclass: HidSubclass::Boot,
+            hid_boot_protocol: HidBootProtocol::Keyboard,
+        },
+    );
 
     // Build the builder.
     let mut usb = builder.build();
@@ -84,7 +67,7 @@ async fn main(_spawner: Spawner) {
     let usb_fut = usb.run();
 
     // Set up the signal pin that will be used to trigger the keyboard.
-    let mut signal_pin = Input::new(p.PIN_16, Pull::None);
+    let mut signal_pin = Input::new(p.PIN_16, Pull::Up);
 
     // Enable the schmitt trigger to slightly debounce.
     signal_pin.set_schmitt(true);
@@ -94,9 +77,9 @@ async fn main(_spawner: Spawner) {
     // Do stuff with the class!
     let in_fut = async {
         loop {
-            info!("Waiting for HIGH on pin 16");
-            signal_pin.wait_for_high().await;
-            info!("HIGH DETECTED");
+            info!("Waiting for LOW on pin 16");
+            signal_pin.wait_for_low().await;
+            info!("LOW DETECTED");
 
             if HID_PROTOCOL_MODE.load(Ordering::Relaxed) == HidProtocolMode::Boot as u8 {
                 match writer.write(&[0, 0, 4, 0, 0, 0, 0, 0]).await {
@@ -117,8 +100,9 @@ async fn main(_spawner: Spawner) {
                     Err(e) => warn!("Failed to send report: {:?}", e),
                 };
             }
-            signal_pin.wait_for_low().await;
-            info!("LOW DETECTED");
+            info!("awaiting high");
+            signal_pin.wait_for_high().await;
+            info!("HIGH DETECTED");
             if HID_PROTOCOL_MODE.load(Ordering::Relaxed) == HidProtocolMode::Boot as u8 {
                 match writer.write(&[0, 0, 0, 0, 0, 0, 0, 0]).await {
                     Ok(()) => {}
@@ -150,15 +134,19 @@ async fn main(_spawner: Spawner) {
 
 struct MyRequestHandler {}
 
-impl RequestHandler for MyRequestHandler {
-    fn get_report(&mut self, id: ReportId, _buf: &mut [u8]) -> Option<usize> {
+impl usb_hid::RequestHandler for MyRequestHandler {
+    fn get_report(&mut self, id: usb_hid::ReportId, _buf: &mut [u8]) -> Option<usize> {
         info!("Get report for {:?}", id);
         None
     }
 
-    fn set_report(&mut self, id: ReportId, data: &[u8]) -> OutResponse {
+    fn set_report(
+        &mut self,
+        id: usb_hid::ReportId,
+        data: &[u8],
+    ) -> embassy_usb::control::OutResponse {
         info!("Set report for {:?}: {=[u8]}", id, data);
-        OutResponse::Accepted
+        embassy_usb::control::OutResponse::Accepted
     }
 
     fn get_protocol(&self) -> HidProtocolMode {
@@ -167,17 +155,17 @@ impl RequestHandler for MyRequestHandler {
         protocol
     }
 
-    fn set_protocol(&mut self, protocol: HidProtocolMode) -> OutResponse {
+    fn set_protocol(&mut self, protocol: HidProtocolMode) -> embassy_usb::control::OutResponse {
         info!("Switching to HID protocol mode: {}", protocol);
         HID_PROTOCOL_MODE.store(protocol as u8, Ordering::Relaxed);
-        OutResponse::Accepted
+        embassy_usb::control::OutResponse::Accepted
     }
 
-    fn set_idle_ms(&mut self, id: Option<ReportId>, dur: u32) {
+    fn set_idle_ms(&mut self, id: Option<usb_hid::ReportId>, dur: u32) {
         info!("Set idle rate for {:?} to {:?}", id, dur);
     }
 
-    fn get_idle_ms(&mut self, id: Option<ReportId>) -> Option<u32> {
+    fn get_idle_ms(&mut self, id: Option<usb_hid::ReportId>) -> Option<u32> {
         info!("Get idle rate for {:?}", id);
         None
     }
@@ -195,7 +183,7 @@ impl MyDeviceHandler {
     }
 }
 
-impl Handler for MyDeviceHandler {
+impl embassy_usb::Handler for MyDeviceHandler {
     fn enabled(&mut self, enabled: bool) {
         self.configured.store(false, Ordering::Relaxed);
         if enabled {
