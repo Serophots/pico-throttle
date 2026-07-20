@@ -1,11 +1,5 @@
 use bitflags::bitflags;
 
-pub struct HardwareState {
-    axis0: u16,
-    axis1: u16,
-    buttons: HardwareButtons,
-}
-
 bitflags! {
     pub struct HardwareButtons: u32 {
         const THROTTLE_DISC_0 = 0b0000_0000_0000_0000_0000_0000_0000_0001;

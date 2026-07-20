@@ -1058,6 +1058,8 @@ dependencies = [
  "embassy-sync",
  "embassy-time",
  "embassy-usb",
+ "embedded-hal 1.0.0",
+ "embedded-hal-async",
  "panic-probe",
  "static_cell",
  "usbd-hid",

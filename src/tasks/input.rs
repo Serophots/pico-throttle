@@ -5,40 +5,46 @@
 //! - any processing on the axes
 //! - broadcasts HardwareState
 
+use core::cell::RefCell;
+
 use embassy_rp::{i2c::I2c, peripherals::I2C0};
 use embassy_time::Timer;
+use static_cell::StaticCell;
 
-use crate::{CHANNEL, driver::HardwarePins, tasks::HardwareDescriptor};
+use crate::{
+    CHANNEL,
+    driver::{
+        HardwarePins,
+        as5600::As5600,
+        tca9548a::{self, Tca9548a},
+    },
+    tasks::HardwareDescriptor,
+};
 
 #[embassy_executor::task]
 pub async fn input_task(
-    i2c: I2c<'static, I2C0, embassy_rp::i2c::Async>,
+    tca9548a: Tca9548a<I2c<'static, I2C0, embassy_rp::i2c::Async>>,
     mut pins: HardwarePins<'static>,
 ) {
-    let mut counter: usize = 0;
+    static TCA9548A: StaticCell<RefCell<Tca9548a<I2c<'static, I2C0, embassy_rp::i2c::Async>>>> =
+        StaticCell::new();
+    let tca9548a = TCA9548A.init_with(|| RefCell::new(tca9548a));
+
+    let i2c_ch0 = tca9548a::Channel::new(tca9548a, 0);
+    let i2c_ch1 = tca9548a::Channel::new(tca9548a, 1);
+
+    let mut axis0 = As5600::new(i2c_ch0);
+    let mut axis1 = As5600::new(i2c_ch1);
 
     loop {
-        counter = counter.wrapping_add(1);
         Timer::after_millis(1).await;
 
         let buttons = pins.read();
 
-        if counter == 2000 {
-            counter = 0;
-        }
-
-        if counter >= 1000 {
-            CHANNEL.signal(HardwareDescriptor {
-                axis0: 0,
-                axis1: u16::MAX,
-                buttons: buttons.bits(),
-            });
-        } else {
-            CHANNEL.signal(HardwareDescriptor {
-                axis0: u16::MAX,
-                axis1: 0,
-                buttons: buttons.bits(),
-            });
-        }
+        CHANNEL.signal(HardwareDescriptor {
+            axis0: axis0.read_angle().await.unwrap(),
+            axis1: axis1.read_angle().await.unwrap(),
+            buttons: buttons.bits(),
+        });
     }
 }

@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+use crate::driver::tca9548a::Tca9548a;
 use crate::driver::{Button, HardwarePins};
 use crate::tasks::HardwareDescriptor;
 use embassy_executor::Spawner;
@@ -78,5 +79,7 @@ async fn main(spawner: Spawner) {
     i2c_config.sda_pullup = false;
 
     let i2c = I2c::new_async(p.I2C0, p.PIN_1, p.PIN_0, Irqs, i2c_config);
-    spawner.spawn(tasks::input_task(i2c, input_task_pins).unwrap());
+    let tca9548a = Tca9548a::new(i2c);
+
+    spawner.spawn(tasks::input_task(tca9548a, input_task_pins).unwrap());
 }
