@@ -8,7 +8,7 @@
 use core::cell::RefCell;
 
 use embassy_rp::{i2c::I2c, peripherals::I2C0};
-use embassy_time::Timer;
+use embassy_time::{Duration, Ticker};
 use static_cell::StaticCell;
 
 use crate::{
@@ -36,9 +36,9 @@ pub async fn input_task(
     let mut axis0 = As5600::new(i2c_ch0);
     let mut axis1 = As5600::new(i2c_ch1);
 
-    loop {
-        Timer::after_millis(1).await;
+    let mut ticker = Ticker::every(Duration::from_millis(1));
 
+    loop {
         let buttons = pins.read();
 
         CHANNEL.signal(HardwareDescriptor {
@@ -46,5 +46,7 @@ pub async fn input_task(
             axis1: axis1.read_angle().await.unwrap(),
             buttons: buttons.bits(),
         });
+
+        ticker.next().await;
     }
 }
