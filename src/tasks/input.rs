@@ -7,6 +7,7 @@
 
 use core::cell::RefCell;
 
+use defmt::error;
 use embassy_rp::{gpio::Output, i2c::I2c, peripherals::I2C1};
 use embassy_time::{Duration, Ticker};
 use embedded_hal_1::digital::{OutputPin, PinState};
@@ -46,26 +47,24 @@ pub async fn input_task(
         let buttons = pins.read();
 
         CHANNEL.signal(HardwareDescriptor {
-            // axis0: axis0
-            //     .read_angle()
-            //     .await
-            //     .map_err(|e| {
-            //         error!("{:?}", e);
-            //         led_state = PinState::Low;
-            //         e
-            //     })
-            //     .unwrap_or(u16::MAX),
-            // axis1: axis1
-            //     .read_angle()
-            //     .await
-            //     .map_err(|e| {
-            //         error!("{:?}", e);
-            //         led_state = PinState::Low;
-            //         e
-            //     })
-            //     .unwrap_or(u16::MAX),
-            axis0: 0,
-            axis1: 0,
+            axis0: axis0
+                .read_angle()
+                .await
+                .map_err(|e| {
+                    error!("{:?}", e);
+                    led_state = PinState::Low;
+                    e
+                })
+                .unwrap_or(u16::MAX),
+            axis1: axis1
+                .read_angle()
+                .await
+                .map_err(|e| {
+                    error!("{:?}", e);
+                    led_state = PinState::Low;
+                    e
+                })
+                .unwrap_or(u16::MAX),
             buttons: buttons.bits(),
         });
 
