@@ -112,8 +112,7 @@ pub mod as5600 {
             // AS5600 increments the address pointer to REG_ANGLE_LOWER
             self.i2c.read(ADDRESS, &mut angle_lower).await?;
 
-            Ok(0)
-            // Ok(((angle_lower[0] as u16) << 8) | ((angle_upper[0] as u16) << 4))
+            Ok(((angle_lower[0] as u16) << 8) | ((angle_upper[0] as u16) << 4))
         }
     }
 }

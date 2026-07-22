@@ -7,6 +7,7 @@
 
 use core::cell::RefCell;
 
+use defmt::error;
 use embassy_rp::{gpio::Output, i2c::I2c, peripherals::I2C0};
 use embassy_time::{Duration, Ticker};
 use embedded_hal_1::digital::{OutputPin, PinState};
@@ -50,18 +51,20 @@ pub async fn input_task(
                 .read_angle()
                 .await
                 .map_err(|e| {
+                    error!("{:?}", e);
                     led_state = PinState::Low;
                     e
                 })
-                .unwrap_or(0),
+                .unwrap_or(u16::MAX),
             axis1: axis1
                 .read_angle()
                 .await
                 .map_err(|e| {
+                    error!("{:?}", e);
                     led_state = PinState::Low;
                     e
                 })
-                .unwrap_or(0),
+                .unwrap_or(u16::MAX),
             buttons: buttons.bits(),
         });
 
