@@ -7,9 +7,9 @@
 
 use core::cell::RefCell;
 
-use defmt::error;
+use defmt::{error, info};
 use embassy_rp::{gpio::Output, i2c::I2c, peripherals::I2C1};
-use embassy_time::{Duration, Ticker};
+use embassy_time::{Duration, Instant, Ticker};
 use embedded_hal_1::digital::{OutputPin, PinState};
 use static_cell::StaticCell;
 
@@ -40,11 +40,18 @@ pub async fn input_task(
     let mut axis1 = As5600::new(i2c_ch1);
 
     let mut ticker = Ticker::every(Duration::from_millis(1));
+
     let mut led_state = PinState::High;
+    let mut led_instant = Instant::now();
 
     loop {
         led.set_state(led_state);
         let buttons = pins.read();
+
+        if led_instant.elapsed() > Duration::from_secs(1) {
+            led_instant = Instant::now();
+            led_state = !led_state;
+        }
 
         CHANNEL.signal(HardwareDescriptor {
             axis0: axis0
@@ -52,7 +59,6 @@ pub async fn input_task(
                 .await
                 .map_err(|e| {
                     error!("{:?}", e);
-                    led_state = PinState::Low;
                     e
                 })
                 .unwrap_or(u16::MAX),
@@ -61,7 +67,6 @@ pub async fn input_task(
                 .await
                 .map_err(|e| {
                     error!("{:?}", e);
-                    led_state = PinState::Low;
                     e
                 })
                 .unwrap_or(u16::MAX),
