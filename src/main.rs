@@ -5,7 +5,7 @@ use crate::driver::tca9548a::Tca9548a;
 use crate::driver::{Button, HardwarePins};
 use crate::tasks::HardwareDescriptor;
 use embassy_executor::Spawner;
-use embassy_rp::gpio::Input;
+use embassy_rp::gpio::{Input, Level, Output};
 use embassy_rp::i2c::{self, I2c};
 use embassy_rp::peripherals::{I2C0, USB};
 use embassy_rp::usb::Driver as UsbDriver;
@@ -42,6 +42,8 @@ static CHANNEL: Signal<CriticalSectionRawMutex, HardwareDescriptor> = Signal::ne
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
+
+    let led = Output::new(p.PIN_25, Level::Low);
 
     // reserve analogue pins
     let _ = p.PIN_26;
@@ -81,5 +83,5 @@ async fn main(spawner: Spawner) {
     let i2c = I2c::new_async(p.I2C0, p.PIN_1, p.PIN_0, Irqs, i2c_config);
     let tca9548a = Tca9548a::new(i2c);
 
-    spawner.spawn(tasks::input_task(tca9548a, input_task_pins).unwrap());
+    spawner.spawn(tasks::input_task(tca9548a, input_task_pins, led).unwrap());
 }

@@ -48,3 +48,10 @@ debug = true
 name = "pico-throttle"
 test = false
 bench = false
+
+[lints.clippy]
+arithmetic_side_effects = "warn"
+expect_used = "warn"
+indexing_slicing = "warn"
+panic = "warn"
+unwrap_used = "warn"
