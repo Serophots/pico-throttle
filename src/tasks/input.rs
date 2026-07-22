@@ -39,19 +39,32 @@ pub async fn input_task(
     let mut axis1 = As5600::new(i2c_ch1);
 
     let mut ticker = Ticker::every(Duration::from_millis(1));
-    let mut led_state = PinState::Low;
+    let mut led_state = PinState::High;
 
     loop {
         led.set_state(led_state);
         let buttons = pins.read();
 
         CHANNEL.signal(HardwareDescriptor {
-            axis0: axis0.read_angle().await.unwrap_or(0),
-            axis1: axis1.read_angle().await.unwrap_or(0),
+            axis0: axis0
+                .read_angle()
+                .await
+                .map_err(|e| {
+                    led_state = PinState::Low;
+                    e
+                })
+                .unwrap_or(0),
+            axis1: axis1
+                .read_angle()
+                .await
+                .map_err(|e| {
+                    led_state = PinState::Low;
+                    e
+                })
+                .unwrap_or(0),
             buttons: buttons.bits(),
         });
 
         ticker.next().await;
-        led_state = !led_state;
     }
 }
