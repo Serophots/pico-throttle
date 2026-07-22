@@ -5,7 +5,7 @@ use crate::HardwareButtons;
 pub mod tca9548a {
     use core::{cell::RefCell, marker::PhantomData};
 
-    const ADDRESS: u8 = 0b11100000;
+    const ADDRESS: u8 = 0b01110000;
 
     pub struct Tca9548a<I2C>
     where
@@ -82,7 +82,7 @@ pub mod tca9548a {
 }
 
 pub mod as5600 {
-    const ADDRESS: u8 = 0b01101100;
+    const ADDRESS: u8 = 0b00110110;
 
     #[allow(unused)]
     const REG_ANGLE_LOWER: u8 = 0x0F;
@@ -104,13 +104,13 @@ pub mod as5600 {
         }
 
         pub async fn read_angle(&mut self) -> Result<u16, I2C::Error> {
-            // let mut angle_upper = [0u8; 1];
-            // let mut angle_lower = [0u8; 1];
-            // self.i2c
-            //     .write_read(ADDRESS, &[REG_ANGLE_UPPER], &mut angle_upper)
-            //     .await?;
+            let mut angle_upper = [0u8; 1];
+            let mut angle_lower = [0u8; 1];
+            self.i2c
+                .write_read(ADDRESS, &[REG_ANGLE_UPPER], &mut angle_upper)
+                .await?;
             // AS5600 increments the address pointer to REG_ANGLE_LOWER
-            // self.i2c.read(ADDRESS, &mut angle_lower).await?;
+            self.i2c.read(ADDRESS, &mut angle_lower).await?;
 
             Ok(0)
             // Ok(((angle_lower[0] as u16) << 8) | ((angle_upper[0] as u16) << 4))

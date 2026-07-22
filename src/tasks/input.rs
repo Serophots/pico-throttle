@@ -46,8 +46,8 @@ pub async fn input_task(
         let buttons = pins.read();
 
         CHANNEL.signal(HardwareDescriptor {
-            axis0: axis0.read_angle().await.unwrap(),
-            axis1: axis1.read_angle().await.unwrap(),
+            axis0: axis0.read_angle().await.unwrap_or(0),
+            axis1: axis1.read_angle().await.unwrap_or(0),
             buttons: buttons.bits(),
         });
 
