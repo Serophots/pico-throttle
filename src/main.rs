@@ -71,6 +71,7 @@ async fn main(spawner: Spawner) {
         unused_5: Button::new(Input::new(p.PIN_19, Pull::Up)),
         unused_6: Button::new(Input::new(p.PIN_20, Pull::Up)),
         unused_7: Button::new(Input::new(p.PIN_21, Pull::Up)),
+        unused_8: Button::new(Input::new(p.PIN_22, Pull::Up)),
     };
 
     let driver = UsbDriver::new(p.USB, Irqs);

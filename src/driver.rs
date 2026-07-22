@@ -139,6 +139,7 @@ pub struct HardwarePins<'d> {
     pub unused_5: Button<'d>,
     pub unused_6: Button<'d>,
     pub unused_7: Button<'d>,
+    pub unused_8: Button<'d>,
 }
 
 impl<'d> HardwarePins<'d> {
@@ -167,6 +168,7 @@ impl<'d> HardwarePins<'d> {
             unused_5,
             unused_6,
             unused_7,
+            unused_8,
         } = self;
 
         for (button, hardware_button) in [
@@ -190,6 +192,7 @@ impl<'d> HardwarePins<'d> {
             (unused_5, HardwareButtons::UNUSED_5),
             (unused_6, HardwareButtons::UNUSED_6),
             (unused_7, HardwareButtons::UNUSED_7),
+            (unused_8, HardwareButtons::UNUSED_8),
         ] {
             if button.read() {
                 buttons |= hardware_button;
