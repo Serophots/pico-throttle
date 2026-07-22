@@ -7,7 +7,7 @@ use crate::tasks::HardwareDescriptor;
 use embassy_executor::Spawner;
 use embassy_rp::gpio::{Input, Level, Output};
 use embassy_rp::i2c::{self, I2c};
-use embassy_rp::peripherals::{I2C0, USB};
+use embassy_rp::peripherals::{I2C1, USB};
 use embassy_rp::usb::Driver as UsbDriver;
 use embassy_rp::{bind_interrupts, gpio::Pull};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
@@ -34,7 +34,7 @@ pub static PICOTOOL_ENTRIES: [embassy_rp::binary_info::EntryAddr; 4] = [
 
 bind_interrupts!(struct Irqs {
     USBCTRL_IRQ => embassy_rp::usb::InterruptHandler<USB>;
-    I2C0_IRQ => embassy_rp::i2c::InterruptHandler<I2C0>;
+    I2C1_IRQ => embassy_rp::i2c::InterruptHandler<I2C1>;
 });
 
 static CHANNEL: Signal<CriticalSectionRawMutex, HardwareDescriptor> = Signal::new();
@@ -50,9 +50,14 @@ async fn main(spawner: Spawner) {
     let _ = p.PIN_27;
     let _ = p.PIN_28;
 
+    // reserve I2C0 & associated pins for the debug pico
+    let _ = p.PIN_0;
+    let _ = p.PIN_1;
+    let _ = p.I2C0;
+
     let input_task_pins = HardwarePins::<'static> {
-        throttle_disc_0: Button::new(Input::new(p.PIN_2, Pull::Up)),
-        throttle_disc_1: Button::new(Input::new(p.PIN_3, Pull::Up)),
+        throttle_disc_0: Button::new(Input::new(p.PIN_0, Pull::Up)),
+        throttle_disc_1: Button::new(Input::new(p.PIN_1, Pull::Up)),
         throttle_toga_0: Button::new(Input::new(p.PIN_4, Pull::Up)),
         throttle_toga_1: Button::new(Input::new(p.PIN_5, Pull::Up)),
         eng_reverse_0: Button::new(Input::new(p.PIN_6, Pull::Up)),
@@ -81,7 +86,7 @@ async fn main(spawner: Spawner) {
     i2c_config.scl_pullup = false;
     i2c_config.sda_pullup = false;
 
-    let i2c = I2c::new_async(p.I2C0, p.PIN_1, p.PIN_0, Irqs, i2c_config);
+    let i2c = I2c::new_async(p.I2C1, p.PIN_3, p.PIN_2, Irqs, i2c_config);
     let tca9548a = Tca9548a::new(i2c);
 
     spawner.spawn(tasks::input_task(tca9548a, input_task_pins, led).unwrap());
