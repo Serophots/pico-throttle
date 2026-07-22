@@ -219,7 +219,7 @@ impl<'d> Button<'d> {
     }
 
     pub fn read(&mut self) -> bool {
-        let unstable = self.gpio.is_high();
+        let unstable = self.gpio.is_low();
 
         if self.counter == 20 {
             self.stable = unstable;

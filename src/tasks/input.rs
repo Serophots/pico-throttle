@@ -29,15 +29,15 @@ pub async fn input_task(
     mut pins: HardwarePins<'static>,
     mut led: Output<'static>,
 ) {
-    static TCA9548A: StaticCell<RefCell<Tca9548a<I2c<'static, I2C0, embassy_rp::i2c::Async>>>> =
-        StaticCell::new();
-    let tca9548a = TCA9548A.init_with(|| RefCell::new(tca9548a));
+    // static TCA9548A: StaticCell<RefCell<Tca9548a<I2c<'static, I2C0, embassy_rp::i2c::Async>>>> =
+    //     StaticCell::new();
+    // let tca9548a = TCA9548A.init_with(|| RefCell::new(tca9548a));
 
-    let i2c_ch0 = tca9548a::Channel::new(tca9548a, 0);
-    let i2c_ch1 = tca9548a::Channel::new(tca9548a, 1);
+    // let i2c_ch0 = tca9548a::Channel::new(tca9548a, 0);
+    // let i2c_ch1 = tca9548a::Channel::new(tca9548a, 1);
 
-    let mut axis0 = As5600::new(i2c_ch0);
-    let mut axis1 = As5600::new(i2c_ch1);
+    // let mut axis0 = As5600::new(i2c_ch0);
+    // let mut axis1 = As5600::new(i2c_ch1);
 
     let mut ticker = Ticker::every(Duration::from_millis(1));
     let mut led_state = PinState::High;
@@ -47,24 +47,26 @@ pub async fn input_task(
         let buttons = pins.read();
 
         CHANNEL.signal(HardwareDescriptor {
-            axis0: axis0
-                .read_angle()
-                .await
-                .map_err(|e| {
-                    error!("{:?}", e);
-                    led_state = PinState::Low;
-                    e
-                })
-                .unwrap_or(u16::MAX),
-            axis1: axis1
-                .read_angle()
-                .await
-                .map_err(|e| {
-                    error!("{:?}", e);
-                    led_state = PinState::Low;
-                    e
-                })
-                .unwrap_or(u16::MAX),
+            // axis0: axis0
+            //     .read_angle()
+            //     .await
+            //     .map_err(|e| {
+            //         error!("{:?}", e);
+            //         led_state = PinState::Low;
+            //         e
+            //     })
+            //     .unwrap_or(u16::MAX),
+            // axis1: axis1
+            //     .read_angle()
+            //     .await
+            //     .map_err(|e| {
+            //         error!("{:?}", e);
+            //         led_state = PinState::Low;
+            //         e
+            //     })
+            //     .unwrap_or(u16::MAX),
+            axis0: 0,
+            axis1: 0,
             buttons: buttons.bits(),
         });
 
