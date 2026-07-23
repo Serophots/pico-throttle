@@ -67,7 +67,7 @@ pub async fn input_task(
             let axis1 = read_angle(&mut sensor_axis1).await;
             let axis1_status = read_status(&mut sensor_axis1).await;
 
-            let axis1_status = as5600::Status::MAGNET_STRONG;
+            let axis1_status = as5600::Status::MAGNET_WEAK;
 
             // Note ^: Bunch reads on the same axis so the
             // multiplexer has to switch channels less often
