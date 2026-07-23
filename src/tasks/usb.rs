@@ -29,7 +29,7 @@ pub async fn usb_task(driver: UsbDriver<'static, USB>) {
 
     let state = STATE.init_with(|| usb_hid::State::new());
 
-    let hid = HidReaderWriter::<_, 1, 10>::new(
+    let hid = HidReaderWriter::<_, 1, 16>::new(
         &mut builder,
         state,
         embassy_usb::class::hid::Config {
