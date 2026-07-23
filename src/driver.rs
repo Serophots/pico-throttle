@@ -95,9 +95,9 @@ pub mod as5600 {
 
     bitflags! {
         pub struct Status: u8 {
-            const MAGNET_DETECTED  = 0b0000_0100; //MD detected
-            const MAGNET_WEAK      = 0b0000_1000; //ML weak
-            const MAGNET_STRONG    = 0b0001_0000; //MH strong
+            const MAGNET_DETECTED  = 0b0010_0000; //MD detected
+            const MAGNET_WEAK      = 0b0001_0000; //ML weak
+            const MAGNET_STRONG    = 0b0000_1000; //MH strong
         }
     }
 
@@ -119,7 +119,7 @@ pub mod as5600 {
         async fn read_u8(&mut self, reg: u8) -> Result<u8, I2C::Error> {
             let mut buf = [0u8; 1];
             self.i2c.write_read(ADDRESS, &[reg], &mut buf).await?;
-            Ok(buf[0])
+            Ok(u8::from_be_bytes(buf))
         }
 
         async fn read_u16(&mut self, reg_hi: u8) -> Result<u16, I2C::Error> {
@@ -132,7 +132,10 @@ pub mod as5600 {
         }
 
         pub async fn read_angle(&mut self) -> Result<u16, I2C::Error> {
-            self.read_u16(REG_ANGLE_UPPER).await.map(|bits| bits << 4)
+            let value = self.read_u16(REG_ANGLE_UPPER).await?;
+            let expanded = ((value as u32) * 0xFFFF / 0x0FFF) as u16;
+
+            Ok(expanded)
         }
 
         pub async fn read_status(&mut self) -> Result<Status, I2C::Error> {
