@@ -95,9 +95,6 @@ pub mod as5600 {
 
     bitflags! {
         pub struct Status: u8 {
-            // const MAGNET_DETECTED  = 0b0010_0000; //MD detected
-            // const MAGNET_WEAK      = 0b0001_0000; //ML weak
-            // const MAGNET_STRONG    = 0b0000_1000; //MH strong
             const MAGNET_DETECTED  = 0b0000_0100; //MD detected
             const MAGNET_WEAK      = 0b0000_1000; //ML weak
             const MAGNET_STRONG    = 0b0001_0000; //MH strong
@@ -119,25 +116,28 @@ pub mod as5600 {
             As5600 { i2c }
         }
 
-        pub async fn read_angle(&mut self) -> Result<u16, I2C::Error> {
-            let mut angle_upper = [0u8; 1];
-            let mut angle_lower = [0u8; 1];
-            self.i2c
-                .write_read(ADDRESS, &[REG_ANGLE_UPPER], &mut angle_upper)
-                .await?;
-            // AS5600 increments the address pointer to REG_ANGLE_LOWER
-            self.i2c.read(ADDRESS, &mut angle_lower).await?;
+        async fn read_u8(&mut self, reg: u8) -> Result<u8, I2C::Error> {
+            let mut buf = [0u8; 1];
+            self.i2c.write_read(ADDRESS, &[reg], &mut buf).await?;
+            Ok(buf[0])
+        }
 
-            Ok(((angle_lower[0] as u16) << 8) | ((angle_upper[0] as u16) << 4))
+        async fn read_u16(&mut self, reg_hi: u8) -> Result<u16, I2C::Error> {
+            let mut buf = [0u8; 2];
+            self.i2c.write_read(ADDRESS, &[reg_hi], &mut buf).await?;
+            Ok(
+                // Filter for last 12 bits
+                u16::from_be_bytes(buf) & 0x0FFF,
+            )
+        }
+
+        pub async fn read_angle(&mut self) -> Result<u16, I2C::Error> {
+            self.read_u16(REG_ANGLE_UPPER).await
         }
 
         pub async fn read_status(&mut self) -> Result<Status, I2C::Error> {
-            let mut status = [0u8; 1];
-            self.i2c
-                .write_read(ADDRESS, &[REG_STATUS], &mut status)
-                .await?;
-
-            Ok(Status::from_bits_truncate(status[0]))
+            let status = self.read_u8(REG_STATUS).await?;
+            Ok(Status::from_bits_truncate(status))
         }
     }
 }
