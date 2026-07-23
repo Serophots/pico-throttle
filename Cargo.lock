@@ -1083,6 +1083,7 @@ dependencies = [
  "embedded-hal 1.0.0",
  "embedded-hal-async",
  "panic-probe",
+ "paste",
  "static_cell",
  "usbd-hid",
 ]

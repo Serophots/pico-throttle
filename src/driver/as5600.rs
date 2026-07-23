@@ -72,60 +72,43 @@ pub enum Watchdog {
     Off = 0,
 }
 
-impl Config {
-    const POWER_MODE: u16 = 0b1100_0000_0000_0000;
-    const HYSTERESIS: u16 = 0b0011_0000_0000_0000;
-    #[allow(unused)]
-    const OUTPUT_STAGE: u16 = 0b0000_1100_0000_0000;
-    #[allow(unused)]
-    const PWM_FREQ: u16 = 0b0000_0011_0000_0000;
-    const SLOW_FILTER: u16 = 0b0000_0000_1100_0000;
-    const FAST_FILTER_THRESHOLD: u16 = 0b0000_0000_0011_1000;
-    const WATCHDOG: u16 = 0b0000_0000_0000_0100;
+macro_rules! config_bitfield {
+    ($($name:ident : $val:expr),* $(,)?) => {
+        paste::paste! {
+            impl Config {
+                $(
+                    pub const [<$name:upper>]: u16 = $val;
 
+                    pub fn [<get_ $name:snake:lower>](&self) -> [<$name:camel>] {
+                        [<$name:camel>]::try_from(
+                            (self.0 & Config::[<$name:upper>]) >> Config::[<$name:upper>].lowest_one().unwrap(),
+                        )
+                        .expect("bit mask")
+                    }
+
+
+                    pub fn [<set_ $name:snake:lower>](&mut self, t: [<$name:camel>]) {
+                        self.0 = self.0 | ((t as u16) << Config::[<$name:upper>].lowest_one().unwrap());
+                    }
+                )*
+            }
+        }
+    }
+}
+
+config_bitfield! {
+    power_mode: 0b1100_0000_0000_0000,
+    hysteresis: 0b0011_0000_0000_0000,
+    // output_stage: 0b0000_1100_0000_0000,
+    // pwm_freq: 0b0000_0011_0000_0000,
+    slow_filter: 0b0000_0000_1100_0000,
+    fast_filter_threshold: 0b0000_0000_0011_1000,
+    watchdog: 0b0000_0000_0000_0100,
+}
+
+impl Config {
     pub fn new(inner: u16) -> Self {
         Config(inner & 0b0011_1111_1111_1111)
-    }
-
-    pub fn get_power_mode(&self) -> PowerMode {
-        PowerMode::try_from((self.0 & Config::POWER_MODE) >> 14).expect("bit mask")
-    }
-
-    pub fn set_power_mode(&mut self) {
-        unimplemented!()
-    }
-
-    pub fn get_hysteresis(&self) -> Hysteresis {
-        Hysteresis::try_from((self.0 & Config::HYSTERESIS) >> 12).expect("bit mask")
-    }
-
-    pub fn set_hysteresis(&mut self) {
-        unimplemented!()
-    }
-
-    pub fn get_slow_filter(&self) -> SlowFilter {
-        SlowFilter::try_from((self.0 & Config::SLOW_FILTER) >> 6).expect("bit mask")
-    }
-
-    pub fn set_slow_filter(&mut self) {
-        unimplemented!()
-    }
-
-    pub fn get_fast_filter_threshold(&self) -> FastFilterThreshold {
-        FastFilterThreshold::try_from((self.0 & Config::FAST_FILTER_THRESHOLD) >> 3)
-            .expect("bit mask")
-    }
-
-    pub fn set_fast_filter_threshold(&mut self) {
-        unimplemented!()
-    }
-
-    pub fn get_watchdog(&self) -> Watchdog {
-        Watchdog::try_from((self.0 & Config::WATCHDOG) >> 2).expect("bit mask")
-    }
-
-    pub fn set_watchdog(&mut self) {
-        unimplemented!()
     }
 }
 

@@ -39,6 +39,7 @@ static_cell = "2.1.1"
 
 bitflags = "2.13"
 derive_more = { version = "2", default-features = false, features = ["try_from"] }
+paste = "1"
 
 [profile.release]
 debug = true
