@@ -49,6 +49,11 @@ pub async fn usb_task(driver: UsbDriver<'static, USB>) {
     let (reader, mut writer) = hid.split();
 
     let usb_writer = async {
+        writer
+            .write_serialize(&HardwareDescriptor::default())
+            .await
+            .unwrap();
+
         loop {
             match CHANNEL.wait().with_timeout(Duration::from_secs(1)).await {
                 Ok(hardware_descriptor) => {
@@ -87,6 +92,7 @@ mod descriptor {
             };
         }
     )]
+    #[derive(Default)]
     pub struct HardwareDescriptor {
         pub axis0: u16,
         pub axis1: u16,
