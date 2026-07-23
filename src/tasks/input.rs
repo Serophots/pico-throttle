@@ -73,8 +73,8 @@ pub async fn input_task(
             HardwareDescriptor {
                 axis0,
                 axis1,
-                axis0_status,
-                axis1_status,
+                // axis0_status,
+                // axis1_status,
                 buttons,
             }
         };
