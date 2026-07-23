@@ -1,8 +1,9 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use defmt::info;
+use defmt::{error, info};
 use embassy_futures::join::join;
 use embassy_rp::{peripherals::USB, usb::Driver as UsbDriver};
+use embassy_time::{Duration, WithTimeout};
 use embassy_usb::class::hid::{self as usb_hid, HidBootProtocol, HidReaderWriter, HidSubclass};
 use embassy_usb::{self as usb};
 use static_cell::StaticCell;
@@ -28,7 +29,7 @@ pub async fn usb_task(driver: UsbDriver<'static, USB>) {
 
     let state = STATE.init_with(|| usb_hid::State::new());
 
-    let hid = HidReaderWriter::<_, 1, 8>::new(
+    let hid = HidReaderWriter::<_, 1, 10>::new(
         &mut builder,
         state,
         embassy_usb::class::hid::Config {
@@ -49,8 +50,14 @@ pub async fn usb_task(driver: UsbDriver<'static, USB>) {
 
     let usb_writer = async {
         loop {
-            let hardware_descriptor = CHANNEL.wait().await;
-            writer.write_serialize(&hardware_descriptor).await.unwrap();
+            match CHANNEL.wait().with_timeout(Duration::from_secs(1)).await {
+                Ok(hardware_descriptor) => {
+                    writer.write_serialize(&hardware_descriptor).await.unwrap();
+                }
+                Err(_) => {
+                    error!("usb channel timed out");
+                }
+            }
         }
     };
     let usb_reader = async { reader.run(false, request_handler) };
@@ -73,14 +80,18 @@ mod descriptor {
                     #[item_settings(data,variable,absolute,volatile)] axis1=input;
                 };
             };
-            (usage_page = BUTTON, usage_min = BUTTON_1, usage_max = 0x20,) = {
+            (usage_page = BUTTON, usage_min = BUTTON_1, usage_max = 48,) = {
                 #[packed_bits = 32] #[item_settings(data,variable,absolute)] buttons=input;
+                #[packed_bits = 8] #[item_settings(data,variable,absolute)] axis0_status=input;
+                #[packed_bits = 8] #[item_settings(data,variable,absolute)] axis1_status=input;
             };
         }
     )]
     pub struct HardwareDescriptor {
         pub axis0: u16,
         pub axis1: u16,
+        pub axis0_status: u8,
+        pub axis1_status: u8,
         pub buttons: u32,
     }
 }

@@ -16,6 +16,7 @@ use embassy_sync::signal::Signal;
 use {defmt_rtt as _, panic_probe as _};
 
 pub mod driver;
+mod result;
 mod state;
 mod tasks;
 

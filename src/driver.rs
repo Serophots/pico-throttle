@@ -73,6 +73,8 @@ pub mod tca9548a {
             address: u8,
             operations: &mut [embedded_hal_async::i2c::Operation<'_>],
         ) -> Result<(), Self::Error> {
+            // Safety: ermmm
+            // actually this is really bad practise..
             let mut tca9548a = self.tca9548a.borrow_mut();
             tca9548a.select(self.channel).await?;
             tca9548a.i2c.transaction(address, operations).await?;
@@ -82,11 +84,22 @@ pub mod tca9548a {
 }
 
 pub mod as5600 {
+    use bitflags::bitflags;
+
     const ADDRESS: u8 = 0b00110110;
 
     #[allow(unused)]
     const REG_ANGLE_LOWER: u8 = 0x0F;
     const REG_ANGLE_UPPER: u8 = 0x0E;
+    const REG_STATUS: u8 = 0x0B;
+
+    bitflags! {
+        pub struct Status: u8 {
+            const MAGNET_DETECTED  = 0b0010_0000;
+            const MAGNET_WEAK      = 0b0001_0000;
+            const MAGNET_STRONG    = 0b0000_1000;
+        }
+    }
 
     pub struct As5600<I2C>
     where
@@ -113,6 +126,15 @@ pub mod as5600 {
             self.i2c.read(ADDRESS, &mut angle_lower).await?;
 
             Ok(((angle_lower[0] as u16) << 8) | ((angle_upper[0] as u16) << 4))
+        }
+
+        pub async fn read_status(&mut self) -> Result<Status, I2C::Error> {
+            let mut status = [0u8; 1];
+            self.i2c
+                .write_read(ADDRESS, &[REG_STATUS], &mut status)
+                .await?;
+
+            Ok(Status::from_bits_truncate(status[0]))
         }
     }
 }
@@ -221,7 +243,11 @@ impl<'d> Button<'d> {
     pub fn read(&mut self) -> bool {
         let unstable = self.gpio.is_low();
 
-        if self.counter == 20 {
+        // If I2C is timing out then buttons are
+        // read 4x less frequently, and a high
+        // debounce counter will result in noticeable
+        // latency.
+        if self.counter == 10 {
             self.stable = unstable;
             self.counter = 0;
         }
