@@ -95,9 +95,12 @@ pub mod as5600 {
 
     bitflags! {
         pub struct Status: u8 {
-            const MAGNET_DETECTED  = 0b0010_0000;
-            const MAGNET_WEAK      = 0b0001_0000;
-            const MAGNET_STRONG    = 0b0000_1000;
+            // const MAGNET_DETECTED  = 0b0010_0000; //MD detected
+            // const MAGNET_WEAK      = 0b0001_0000; //ML weak
+            // const MAGNET_STRONG    = 0b0000_1000; //MH strong
+            const MAGNET_DETECTED  = 0b0000_0100; //MD detected
+            const MAGNET_WEAK      = 0b0000_1000; //ML weak
+            const MAGNET_STRONG    = 0b0001_0000; //MH strong
         }
     }
 
