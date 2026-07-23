@@ -46,11 +46,6 @@ async fn main(spawner: Spawner) {
 
     let led = Output::new(p.PIN_25, Level::Low);
 
-    // reserve analogue pins
-    let _ = p.PIN_26;
-    let _ = p.PIN_27;
-    let _ = p.PIN_28;
-
     // reserve I2C0 & associated pins for the debug pico
     let _ = p.PIN_0;
     let _ = p.PIN_1;
@@ -78,6 +73,9 @@ async fn main(spawner: Spawner) {
         unused_6: Button::new(Input::new(p.PIN_20, Pull::Up)),
         unused_7: Button::new(Input::new(p.PIN_21, Pull::Up)),
         unused_8: Button::new(Input::new(p.PIN_22, Pull::Up)),
+        unused_9: Button::new(Input::new(p.PIN_26, Pull::Up)),
+        unused_10: Button::new(Input::new(p.PIN_27, Pull::Up)),
+        unused_11: Button::new(Input::new(p.PIN_28, Pull::Up)),
     };
 
     let driver = UsbDriver::new(p.USB, Irqs);
