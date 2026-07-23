@@ -55,7 +55,7 @@ pub async fn input_task(
         }
 
         let descriptor = {
-            let buttons = pins.read().bits();
+            let mut buttons = pins.read().bits();
 
             // Safety:
             // These futures should NOT be polled in parallel
@@ -69,6 +69,8 @@ pub async fn input_task(
 
             // Note ^: Bunch reads on the same axis so the
             // multiplexer has to switch channels less often
+
+            buttons = buttons & (axis0_status.bits() as u32 >> 3) & (axis1_status.bits() as u32);
 
             HardwareDescriptor {
                 axis0,
@@ -103,7 +105,7 @@ where
 }
 
 #[inline]
-async fn read_status<I2C>(sensor: &mut As5600<I2C>) -> u8
+async fn read_status<I2C>(sensor: &mut As5600<I2C>) -> as5600::Status
 where
     I2C: embedded_hal_async::i2c::I2c,
     <I2C as embedded_hal_1::i2c::ErrorType>::Error: defmt::Format,
@@ -116,7 +118,5 @@ where
         .transpose()
         .err_log()
         .flatten()
-        .as_ref()
-        .map(as5600::Status::bits)
-        .unwrap_or(0)
+        .unwrap_or(as5600::Status::empty())
 }

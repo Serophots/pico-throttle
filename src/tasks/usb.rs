@@ -87,8 +87,6 @@ mod descriptor {
             };
             (usage_page = BUTTON, usage_min = BUTTON_1, usage_max = 48,) = {
                 #[packed_bits = 32] #[item_settings(data,variable,absolute)] buttons=input;
-                // #[packed_bits = 8] #[item_settings(data,variable,absolute)] axis0_status=input;
-                // #[packed_bits = 8] #[item_settings(data,variable,absolute)] axis1_status=input;
             };
         }
     )]
@@ -96,8 +94,6 @@ mod descriptor {
     pub struct HardwareDescriptor {
         pub axis0: u16,
         pub axis1: u16,
-        // pub axis0_status: u8,
-        // pub axis1_status: u8,
         pub buttons: u32,
     }
 }
