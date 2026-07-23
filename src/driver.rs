@@ -132,7 +132,7 @@ pub mod as5600 {
         }
 
         pub async fn read_angle(&mut self) -> Result<u16, I2C::Error> {
-            self.read_u16(REG_ANGLE_UPPER).await
+            self.read_u16(REG_ANGLE_UPPER).await.map(|bits| bits << 4)
         }
 
         pub async fn read_status(&mut self) -> Result<Status, I2C::Error> {
