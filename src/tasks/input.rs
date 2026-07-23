@@ -70,7 +70,7 @@ pub async fn input_task(
             // Note ^: Bunch reads on the same axis so the
             // multiplexer has to switch channels less often
 
-            buttons = buttons & (axis0_status.bits() as u32 >> 3) & (axis1_status.bits() as u32);
+            buttons = buttons | (axis0_status.bits() as u32 >> 3) & (axis1_status.bits() as u32);
 
             HardwareDescriptor {
                 axis0,
@@ -97,7 +97,8 @@ where
         .read_angle()
         .with_timeout(I2C_TIMEOUT)
         .await
-        .err_log()
+        // .err_log()
+        .ok()
         .transpose()
         .err_log()
         .flatten()
@@ -114,7 +115,8 @@ where
         .read_status()
         .with_timeout(I2C_TIMEOUT)
         .await
-        .err_log()
+        // .err_log()
+        .ok()
         .transpose()
         .err_log()
         .flatten()

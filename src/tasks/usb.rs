@@ -29,7 +29,7 @@ pub async fn usb_task(driver: UsbDriver<'static, USB>) {
 
     let state = STATE.init_with(|| usb_hid::State::new());
 
-    let hid = HidReaderWriter::<_, 1, 16>::new(
+    let hid = HidReaderWriter::<_, 1, 8>::new(
         &mut builder,
         state,
         embassy_usb::class::hid::Config {
@@ -85,7 +85,7 @@ mod descriptor {
                     #[item_settings(data,variable,absolute,volatile)] axis1=input;
                 };
             };
-            (usage_page = BUTTON, usage_min = BUTTON_1, usage_max = 48,) = {
+            (usage_page = BUTTON, usage_min = BUTTON_1, usage_max = 32,) = {
                 #[packed_bits = 32] #[item_settings(data,variable,absolute)] buttons=input;
             };
         }
