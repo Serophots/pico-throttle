@@ -38,6 +38,7 @@ static_cell = "2.1.1"
 # rand = { version = "0.10.2", default-features = false }
 
 bitflags = "2.13"
+derive_more = { version = "2", default-features = false, features = ["try_from"] }
 
 [profile.release]
 debug = true
