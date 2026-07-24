@@ -18,6 +18,7 @@ bitflags! {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Config(u16);
 
 #[derive(derive_more::TryFrom)]
@@ -55,13 +56,13 @@ pub enum SlowFilter {
 #[repr(u16)]
 pub enum FastFilterThreshold {
     SlowFilterOnly = 0b000,
-    _6 = 0b001,
-    _7 = 0b010,
-    _9 = 0b011,
-    _18 = 0b100,
-    _21 = 0b101,
-    _24 = 0b110,
-    _10 = 0b111,
+    Counts6 = 0b001,
+    Counts7 = 0b010,
+    Counts9 = 0b011,
+    Counts18 = 0b100,
+    Counts21 = 0b101,
+    Counts24 = 0b110,
+    Counts10 = 0b111,
 }
 
 #[derive(derive_more::TryFrom)]
@@ -110,6 +111,10 @@ impl Config {
     pub fn new(inner: u16) -> Self {
         Config(inner & 0b0011_1111_1111_1111)
     }
+
+    pub fn inner(&self) -> u16 {
+        self.0 & 0b0011_1111_1111_1111
+    }
 }
 
 pub struct As5600<I2C>
@@ -123,8 +128,10 @@ impl<I2C> As5600<I2C>
 where
     I2C: embedded_hal_async::i2c::I2c,
 {
-    pub fn new(i2c: I2C) -> Self {
-        As5600 { i2c }
+    pub async fn new_with_config(i2c: I2C, config: Config) -> Result<Self, I2C::Error> {
+        let mut as5600 = As5600 { i2c };
+        as5600.write_config(config).await?;
+        Ok(as5600)
     }
 
     async fn read_u8(&mut self, reg: u8) -> Result<u8, I2C::Error> {
@@ -133,14 +140,40 @@ where
         Ok(u8::from_be_bytes(buf))
     }
 
+    #[allow(unused)]
+    async fn write_u8(&mut self, reg: u8, value: u8) -> Result<(), I2C::Error> {
+        let bytes = value.to_be_bytes();
+        self.i2c.write(ADDRESS, &[reg, bytes[0]]).await?;
+        Ok(())
+    }
+
     async fn read_u16(&mut self, reg_hi: u8) -> Result<u16, I2C::Error> {
         let mut buf = [0u8; 2];
         self.i2c.write_read(ADDRESS, &[reg_hi], &mut buf).await?;
         Ok(u16::from_be_bytes(buf))
     }
 
-    pub async fn read_config(&mut self) -> Result<Config, I2C::Error> {
+    async fn write_u16(&mut self, reg_hi: u8, value: u16) -> Result<(), I2C::Error> {
+        let buf = value.to_be_bytes();
+        self.i2c.write(ADDRESS, &[reg_hi, buf[0], buf[1]]).await?;
+        Ok(())
+    }
+
+    async fn read_config(&mut self) -> Result<Config, I2C::Error> {
         Ok(Config::new(self.read_u16(REG_CONF_HI).await?))
+    }
+
+    fn write_config(&mut self, config: Config) -> impl Future<Output = Result<(), I2C::Error>> {
+        self.write_u16(REG_CONF_HI, config.inner())
+    }
+
+    pub async fn mut_config<F>(&mut self, f: F) -> Result<(), I2C::Error>
+    where
+        F: FnOnce(Config) -> Config,
+    {
+        let config = self.read_config().await?;
+        self.write_config(f(config)).await?;
+        Ok(())
     }
 
     pub async fn read_angle(&mut self) -> Result<u16, I2C::Error> {

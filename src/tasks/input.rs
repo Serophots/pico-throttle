@@ -38,8 +38,31 @@ pub async fn input_task(
     let i2c_ch0 = tca9548a::Channel::new(tca9548a, 0);
     let i2c_ch1 = tca9548a::Channel::new(tca9548a, 1);
 
-    let mut sensor_axis0 = As5600::new(i2c_ch0);
-    let mut sensor_axis1 = As5600::new(i2c_ch1);
+    let as5600_config = {
+        let mut cfg = as5600::Config::new(0);
+        cfg.set_power_mode(as5600::PowerMode::Nom);
+        cfg.set_hysteresis(as5600::Hysteresis::One);
+        cfg.set_slow_filter(
+            // Highest latency but lowest noise
+            as5600::SlowFilter::X16,
+        );
+        cfg.set_fast_filter_threshold(
+            // Slow -> Fast: 18 counts
+            // Fast -> Slow: 2 counts
+            as5600::FastFilterThreshold::Counts18,
+        );
+        cfg.set_watchdog(
+            // Don't try to move into low power mode, ever
+            as5600::Watchdog::Off,
+        );
+        cfg
+    };
+    let mut sensor_axis0 = As5600::new_with_config(i2c_ch0, as5600_config)
+        .await
+        .err_log();
+    let mut sensor_axis1 = As5600::new_with_config(i2c_ch1, as5600_config)
+        .await
+        .err_log();
 
     let mut ticker = Ticker::every(Duration::from_millis(1));
 
@@ -62,10 +85,21 @@ pub async fn input_task(
             // there's some interior mutabilty going on under
             // the hood which I've not been able to express
             // in idiomatic rust :(
-            let axis0 = read_angle(&mut sensor_axis0).await;
-            let axis0_status = read_status(&mut sensor_axis0).await;
-            let axis1 = read_angle(&mut sensor_axis1).await;
-            let axis1_status = read_status(&mut sensor_axis1).await;
+
+            let mut axis0 = u16::MAX / 2;
+            let mut axis1 = u16::MAX / 2;
+            let mut axis0_status = as5600::Status::empty();
+            let mut axis1_status = as5600::Status::empty();
+
+            if let Some(sensor_axis0) = &mut sensor_axis0 {
+                axis0 = read_angle(sensor_axis0).await;
+                axis0_status = read_status(sensor_axis0).await;
+            }
+
+            if let Some(sensor_axis1) = &mut sensor_axis1 {
+                axis1 = read_angle(sensor_axis1).await;
+                axis1_status = read_status(sensor_axis1).await;
+            }
 
             // Note ^: Bunch reads on the same axis so the
             // multiplexer has to switch channels less often
