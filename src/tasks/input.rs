@@ -23,7 +23,7 @@ use crate::{
     tasks::HardwareDescriptor,
 };
 
-const I2C_TIMEOUT: Duration = Duration::from_millis(2);
+const I2C_TIMEOUT: Duration = Duration::from_millis(5);
 
 #[embassy_executor::task]
 pub async fn input_task(
