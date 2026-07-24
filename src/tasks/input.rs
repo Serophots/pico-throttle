@@ -58,11 +58,19 @@ pub async fn input_task(
         cfg
     };
     let mut sensor_axis0 = As5600::new_with_config(i2c_ch0, as5600_config)
+        .with_timeout(I2C_TIMEOUT)
         .await
-        .err_log();
+        .err_log()
+        .transpose()
+        .err_log()
+        .flatten();
     let mut sensor_axis1 = As5600::new_with_config(i2c_ch1, as5600_config)
+        .with_timeout(I2C_TIMEOUT)
         .await
-        .err_log();
+        .err_log()
+        .transpose()
+        .err_log()
+        .flatten();
 
     let mut ticker = Ticker::every(Duration::from_millis(1));
 
