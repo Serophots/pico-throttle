@@ -112,8 +112,8 @@ pub async fn input_task(
             // Note ^: Bunch reads on the same axis so the
             // multiplexer has to switch channels less often
 
-            buttons = (buttons | ((axis0_status.bits() as u32) << 26))
-                | ((axis1_status.bits() as u32) << 23);
+            buttons = (buttons | ((axis0_status.bits() as u32) << 23))
+                | ((axis1_status.bits() as u32) << 26);
 
             HardwareDescriptor {
                 axis0,
